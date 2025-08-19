@@ -17,6 +17,8 @@ import Courses from "./pages/Courses"; // Public/Member list of all courses
 import Chapters from "./pages/Chapters"; // Public/Member list of a course's chapters
 import Chapter from "./pages/Chapter"; // Public/Member view a specific chapter
 import AdminDashboard from "./admin/AdminDashboard";
+import { SidebarProvider } from "./context/SidebarContext";
+import AdminMembers from "./admin/AdminMembers";
 
 
 const App = () => {
@@ -27,7 +29,9 @@ const App = () => {
   }, [dispatch]);
 
   return (
+    
     <BrowserRouter>
+    <SidebarProvider>
       <div className="min-h-screen flex flex-col bg-[#f2f2f3]">
         <Navbar />
         <main className="flex-grow container mx-auto p-4">
@@ -46,13 +50,16 @@ const App = () => {
             {/* --- Admin Routes --- */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/courses" element={<AdminCourses />} />
+            <Route path="/admin/members" element={<AdminMembers />} />
             <Route path="/admin/courses/:courseId/chapters" element={<AdminChapter />} />
 
           </Routes>
         </main>
         <Footer />
       </div>
+      </SidebarProvider>
     </BrowserRouter>
+    
   );
 };
 

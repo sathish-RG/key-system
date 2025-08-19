@@ -14,7 +14,6 @@ const Login = () => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.auth);
 
-  // ✅ Initialize reCAPTCHA once
   useEffect(() => {
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
@@ -22,13 +21,10 @@ const Login = () => {
         "recaptcha-container",
         { size: "invisible" }
       );
-
-      // This actually creates the iframe and attaches it to the container
       window.recaptchaVerifier.render().catch(console.error);
     }
   }, []);
 
-  // ✅ Send OTP
   const sendOTP = async () => {
     if (!phone) {
       alert("Please enter phone number");
@@ -36,8 +32,6 @@ const Login = () => {
     }
 
     try {
-      
-
       const fullPhone = phone.startsWith("+91")
         ? phone
         : "+91" + phone.replace(/\D/g, "");
@@ -53,47 +47,39 @@ const Login = () => {
     } catch (error) {
       console.error("OTP Send Error:", error);
       alert(error.message || "Failed to send OTP");
-    } finally {
-    
     }
   };
 
-// ... (imports and other functions are the same)
+  const verifyOTP = async () => {
+    if (!confirmationResult) {
+      alert("Please request OTP first.");
+      return;
+    }
 
-// ✅ Verify OTP & Login
-const verifyOTP = async () => {
-  if (!confirmationResult) {
-    alert("Please request OTP first.");
-    return;
-  }
+    try {
+      const userCredential = await confirmationResult.confirm(otp);
+      const token = await userCredential.user.getIdToken();
 
-  try {
-    const userCredential = await confirmationResult.confirm(otp);
-    // This is the short-lived ID token from Firebase
-    const token = await userCredential.user.getIdToken();
+      dispatch(loginWithOTP({ token, phoneNumber: phone }))
+        .unwrap()
+        .then((res) => {
+          // Store user data in localStorage
+          localStorage.setItem("user", JSON.stringify({
+            name: res.user.name,
+            email: res.user.email,
+            username: res.user.username,
+            role: res.user.role
+          }));
+          localStorage.setItem("role", res.user.role);
 
-    // Dispatch the ID token to the backend. The phone number is also correct.
-    dispatch(loginWithOTP({ token, phoneNumber: phone }))
-      .unwrap()
-      .then((res) => {
-        // ✅ CORRECTED: Only save the user's role. 
-        // The session is handled by the httpOnly cookie now.
-        localStorage.setItem("role", res.user.role);
-
-        // ❌ REMOVED: Do not save any token to localStorage.
-        // localStorage.setItem("token", res.token);
-
-        // Navigate the user based on their role.
-        navigate(res.user.role === "admin" ? "/admin/courses" : "/members");
-      })
-      .catch((err) => alert(err || "Login failed"));
-  } catch (error) {
-    console.error("OTP Verification Error:", error);
-    alert("Invalid OTP");
-  }
-};
-
-// ... (return JSX is the same)
+          navigate(res.user.role === "admin" ? "/admin" : "/member");
+        })
+        .catch((err) => alert(err || "Login failed"));
+    } catch (error) {
+      console.error("OTP Verification Error:", error);
+      alert("Invalid OTP");
+    }
+  };
 
   return (
     <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
@@ -117,7 +103,6 @@ const verifyOTP = async () => {
         {loading ? "Sending..." : "Send OTP"}
       </button>
 
-      {/* This container must always be in the DOM */}
       <div id="recaptcha-container" className="mb-4"></div>
 
       <input

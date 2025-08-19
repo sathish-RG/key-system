@@ -3,12 +3,14 @@ import { configureStore } from "@reduxjs/toolkit";
 import authReducer, { hydrateAuth } from "../features/auth/authSlice";
 import chapterReducer from "../features/chapters/chapterSlice";
 import courseReducer from "../features/coures/courseSlice";
+import memberReducer from "../features/members/memberSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     chapters: chapterReducer,
     courses: courseReducer,
+    members: memberReducer,
   },
 });
 
