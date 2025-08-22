@@ -154,7 +154,7 @@ const AdminCourses = () => {
             {courses.map((course) => (
               <div key={course._id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
                 {/* Course Image */}
-                <div className="h-48 bg-gradient-to-br from-blue-500 to-purple-600 relative overflow-hidden">
+                <div className="h-48 bg-gradient-to-r from-teal-600 to-green-600 relative overflow-hidden">
                   {course.image ? (
                     <img 
                       src={course.image} 

@@ -1,65 +1,62 @@
-import React from "react";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Navbar from "./layouts/Navbar";
-import Footer from "./layouts/Footer";
+import { useDispatch } from "react-redux";
+import { Toaster } from "react-hot-toast";
+
+// Import Layout and Page Components
+import Layout from "./layouts/Layout";
+import Home from "./pages/Home";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
-import Home from "./pages/Home";
-import { useDispatch } from "react-redux";
-import { hydrateAuth } from "./redux/features/auth/authSlice";
-
-// Import All Page Components
+import Courses from "./pages/Courses";
+import Chapters from "./pages/Chapters";
+import Chapter from "./pages/Chapter";
+import MemberDashboard from "./member/MemberDashboard";
 import AdminCourses from "./admin/AdminCourses";
 import AdminChapter from "./admin/AdminChapter";
-import MemberDashboard from "./member/MemberDashboard";
-import Courses from "./pages/Courses"; // Public/Member list of all courses
-import Chapters from "./pages/Chapters"; // Public/Member list of a course's chapters
-import Chapter from "./pages/Chapter"; // Public/Member view a specific chapter
-import AdminDashboard from "./admin/AdminDashboard";
-import { SidebarProvider } from "./context/SidebarContext";
 import AdminMembers from "./admin/AdminMembers";
 
+// Import the Redux action to check for a user session
+import { fetchUserProfile } from "./redux/features/auth/authSlice";
+import AdminDashboard from "./admin/AdminDashboard";
 
 const App = () => {
   const dispatch = useDispatch();
 
+  // On app load, dispatch fetchUserProfile to check for an active session cookie
   useEffect(() => {
-    dispatch(hydrateAuth());
+    dispatch(fetchUserProfile());
   }, [dispatch]);
 
   return (
-    
     <BrowserRouter>
-    <SidebarProvider>
-      <div className="min-h-screen flex flex-col bg-[#f2f2f3]">
-        <Navbar />
-        <main className="flex-grow container mx-auto p-4">
-          <Routes>
-            {/* --- Core & Auth Routes --- */}
-            <Route path="/" element={<Home />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
+      {/* Toaster component for modern notifications */}
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
 
-            {/* --- Member Routes --- */}
-            <Route path="/member" element={<MemberDashboard />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/courses/:courseId" element={<Chapters />} />
-            <Route path="/courses/:courseId/chapters/:chapterId" element={<Chapter />} />
-            
-            {/* --- Admin Routes --- */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/courses" element={<AdminCourses />} />
-            <Route path="/admin/members" element={<AdminMembers />} />
-            <Route path="/admin/courses/:courseId/chapters" element={<AdminChapter />} />
+      {/* The Layout component wraps all pages to provide the sidebar and header */}
+      <Layout>
+        <Routes>
+          {/* --- Core & Public Routes --- */}
+          <Route path="/" element={<Home />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/courses/:courseId" element={<Chapters />} />
+          <Route path="/courses/:courseId/chapters/:chapterId" element={<Chapter />} />
 
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-      </SidebarProvider>
+          {/* --- Authentication Routes --- */}
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          
+          {/* --- Member-Specific Routes --- */}
+          <Route path="/member" element={<MemberDashboard />} />
+          
+          {/* --- Admin-Specific Routes --- */}
+          <Route path="/admin/courses" element={<AdminCourses />} />
+          <Route path="/admin/members" element={<AdminMembers />} />
+          <Route path="/admin/courses/:courseId/chapters" element={<AdminChapter />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard/>}/>
+        </Routes>
+      </Layout>
     </BrowserRouter>
-    
   );
 };
 

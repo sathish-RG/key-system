@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { auth } from "../lib/firebase"; // your firebase config file
-import { registerWithOTP } from "../redux/features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { auth } from "../lib/firebase"; 
+import { registerWithOTP } from "../redux/features/auth/authSlice";
+import toast from "react-hot-toast";
 
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error, isRegistered } = useSelector((state) => state.auth);
+  const { loading, error } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -16,144 +17,150 @@ const Register = () => {
     phoneNumber: "",
   });
   const [otp, setOtp] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpSent, setOtpSent] = useState(false);
+
+  // Initialize reCAPTCHA on component mount
+  useEffect(() => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+      });
+    }
+  }, []);
+
+  // Display Redux errors as toasts
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Only create reCAPTCHA once
-  const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        {
-          size: "invisible", // or "normal"
-          callback: () => {
-            console.log("reCAPTCHA solved");
-          },
-        }
-      );
+  const handleSendOtp = async () => {
+    if (!formData.phoneNumber || formData.phoneNumber.length !== 10) {
+      return toast.error("Please enter a valid 10-digit phone number.");
     }
-  };
-
-  const sendOTP = async () => {
+    
     try {
-      if (!formData.phoneNumber || formData.phoneNumber.length !== 10) {
-        alert("Please enter a valid 10-digit phone number");
-        return;
-      }
-      setupRecaptcha();
-
       const appVerifier = window.recaptchaVerifier;
-      const confirmationResult = await signInWithPhoneNumber(
-        auth,
-        "+91" + formData.phoneNumber,
-        appVerifier
-      );
+      const formattedPhoneNumber = `+91${formData.phoneNumber}`;
+      
+      const result = await signInWithPhoneNumber(auth, formattedPhoneNumber, appVerifier);
+      
+      setConfirmationResult(result);
+      setOtpSent(true);
+      toast.success("OTP sent successfully!");
 
-      // ✅ Store globally so verify step can access it
-      window.confirmationResult = confirmationResult;
-      alert("OTP sent successfully to +" + formData.phoneNumber);
     } catch (err) {
       console.error("Error sending OTP:", err);
-      alert("Failed to send OTP");
+      toast.error("Failed to send OTP. Please try again or check the console.");
     }
   };
 
-  const verifyOTP = async () => {
-    try {
-      const res = await window.confirmationResult.confirm(otp);
+  // In pages/Register.jsx
 
-      // ✅ Correct: get Firebase ID token
-      const idToken = await res.user.getIdToken();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!confirmationResult) return toast.error("Please request an OTP first.");
+  if (otp.length !== 6) return toast.error("Please enter a valid 6-digit OTP.");
 
-      // ✅ Send idToken in body (not token)
-       dispatch(
-    registerWithOTP({
-      token: idToken, // CHANGED: from 'idToken' to 'token'
+  try {
+    const userCredential = await confirmationResult.confirm(otp);
+    const idToken = await userCredential.user.getIdToken();
+
+    const registrationData = {
+      idToken,
       name: formData.name,
       email: formData.email,
       phoneNumber: formData.phoneNumber,
-      role: "member",
-      status: "false",
-    })
-  );
-      navigate("/login"); // Redirect after successful registration
-    } catch (err) {
-      console.error("OTP verification failed:", err);
-      alert("OTP verification failed");
-    }
-  };
+    };
 
+    await dispatch(registerWithOTP(registrationData)).unwrap();
+    
+    // ✅ CHANGED: Show a new message and redirect to the login page.
+    toast.success("Registration successful! Please log in to continue.");
+    navigate("/member");
+
+  } catch (err) {
+    toast.error(err || "Registration failed. This phone number may already be in use.");
+  }
+};
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        {/* Recaptcha container */}
-        <div id="recaptcha-container" className="mb-4"></div>
+    <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg items-center justify-center mx-auto">
+      <div id="recaptcha-container"></div>
+      
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900">Create an Account</h1>
+        <p className="mt-2 text-gray-600">Join us and start your journey!</p>
+      </div>
 
-        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
-          Register with Mobile OTP
-        </h1>
-
-        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-
-        {/* Name */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
-          className="border border-gray-300 p-3 w-full mb-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          type="text"
           name="name"
-          placeholder="Full Name"
+          placeholder="Full Name *"
           value={formData.name}
           onChange={handleChange}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+          disabled={otpSent}
         />
-
-        {/* Email */}
         <input
-          className="border border-gray-300 p-3 w-full mb-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          type="email"
           name="email"
-          placeholder="Email"
+          placeholder="Email Address (Optional)"
           value={formData.email}
           onChange={handleChange}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={otpSent}
         />
-
-        {/* Mobile */}
-        <input
-          className="border border-gray-300 p-3 w-full mb-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-          name="phoneNumber"
-          placeholder="10-digit Mobile Number"
-          value={formData.phoneNumber}
-          onChange={handleChange}
-        />
-
-        <button
-          className="bg-gradient-to-r from-teal-600 to-green-600 text-white font-medium p-3 w-full rounded-lg mb-4"
-          onClick={sendOTP}
-        >
-          Send OTP
-        </button>
-
-        {/* OTP */}
-        <input
-          className="border border-gray-300 p-3 w-full mb-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
-          placeholder="Enter OTP"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-        />
-
-        <button
-          className="bg-gradient-to-r from-teal-600 to-green-600 text-white font-medium p-3 w-full rounded-lg"
-          onClick={verifyOTP}
-          disabled={loading}
-        >
-          {loading ? "Registering..." : "Verify & Register"}
-        </button>
-
-        {isRegistered && (
-          <p className="text-green-500 mt-4 text-center font-medium">
-            Registered Successfully!
-          </p>
+        
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            name="phoneNumber"
+            placeholder="10-Digit Mobile Number *"
+            value={formData.phoneNumber}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+            disabled={otpSent}
+          />
+          <button
+            type="button"
+            onClick={handleSendOtp}
+            disabled={loading || otpSent}
+            className="px-4 py-2 bg-gradient-to-r from-teal-600 to-green-600 text-gray-800 rounded-lg font-semibold disabled:opacity-50 shrink-0"
+          >
+            {otpSent ? 'Sent' : 'Send OTP'}
+          </button>
+        </div>
+        
+        {/* ✅ IMPROVEMENT: Only show OTP field after it has been sent */}
+        {otpSent && (
+          <div>
+            <input
+              type="number"
+              placeholder="Enter 6-Digit OTP *"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-4 px-4 py-3 font-semibold text-white bg-gradient-to-r from-teal-600 to-green-600 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? "Registering..." : "Verify & Register"}
+            </button>
+          </div>
         )}
-      </div>
+      </form>
     </div>
   );
 };
